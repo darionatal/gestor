@@ -1,0 +1,25 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run Hello World",
+			"type": "shell",
+			"command": "/home/dario/pdvmob/.venv/bin/python",
+			"args": [
+				"main.py"
+			],
+			"isBackground": false,
+			"group": "build"
+		},
+		{
+			"label": "Run Hello World",
+			"type": "shell",
+			"command": "/home/dario/pdvmob/.venv/bin/python",
+			"args": [
+				"main.py"
+			],
+			"isBackground": false,
+			"group": "build"
+		}
+	]
+}
