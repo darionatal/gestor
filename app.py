@@ -278,7 +278,7 @@ def comissao():
     </html>
     '''
     return html
-
+print("[DEBUG] Comissão page rendered")
 # Rota de logout
 @app.route('/logout')
 def logout():
