@@ -4,7 +4,51 @@ import psycopg2
 app = Flask(__name__)
 app.secret_key = 'sua_chave_secreta_aqui'
 
-LOGIN_HTML = open('static/login.html').read()
+
+# Novo template de login com campo para empresa
+LOGIN_HTML = '''
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Roboto', Arial, sans-serif; background: #1565c0; margin: 0; min-height: 100vh; }
+        .container { max-width: 400px; margin: 80px auto; background: #f4f8fb; padding: 36px 28px 28px 28px; border-radius: 16px; box-shadow: 0 4px 24px rgba(21,101,192,0.13); text-align: center; }
+        .titulo { font-size: 2.1rem; font-weight: 700; color: #1565c0; margin-bottom: 18px; }
+        .form-group { margin-bottom: 18px; text-align: left; }
+        label { display: block; font-weight: 700; color: #1976d2; margin-bottom: 6px; }
+        input[type="text"], input[type="password"] { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #b0bec5; font-size: 1rem; }
+        .btn { width: 100%; padding: 12px; background: #1976d2; color: #fff; border: none; border-radius: 6px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+        .btn:hover { background: #0d47a1; }
+        .error { color: #d32f2f; margin-bottom: 12px; font-weight: 700; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="titulo">Login</div>
+        {% if error %}<div class="error">{{ error }}</div>{% endif %}
+        <form method="post">
+            <div class="form-group">
+                <label for="empresa">Empresa</label>
+                <input type="text" id="empresa" name="empresa" required placeholder="Nome da empresa">
+            </div>
+            <div class="form-group">
+                <label for="username">Usuário</label>
+                <input type="text" id="username" name="username" required placeholder="Login">
+            </div>
+            <div class="form-group">
+                <label for="password">Senha</label>
+                <input type="password" id="password" name="password" required placeholder="Senha">
+            </div>
+            <button type="submit" class="btn">Entrar</button>
+        </form>
+    </div>
+</body>
+</html>
+'''
 
 def get_prestador_info():
     try:
@@ -28,16 +72,28 @@ DB_CONFIG = {
     'port': 5432
 }
 
-def check_user(username, password):
+
+# Novo: checa usuário usando login, senha e identificador (empresa)
+def check_user(username, password, empresa):
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor()
-        cur.execute("SELECT profissional_id, login FROM usuarios WHERE login=%s AND senha=%s", (username, password))
+        cur.execute("""
+            SELECT usuario_id, login, fantasia, cnpj, identificador
+            FROM vw_usuarios
+            WHERE login=%s AND senha=%s AND identificador=%s
+        """, (username, password, empresa))
         result = cur.fetchone()
         cur.close()
         conn.close()
         if result:
-            return {'profissional_id': result[0], 'login': result[1]}
+            return {
+                'profissional_id': result[0],
+                'login': result[1],
+                'nome_fantasia': result[2],
+                'cnpj': result[3],
+                'identificador': result[4]
+            }
         return None
     except Exception as e:
         print("Erro ao acessar o banco:", e)
@@ -47,21 +103,25 @@ def check_user(username, password):
 def index():
     return redirect(url_for('login'))
 
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     error = None
-    prestador = get_prestador_info()
     if request.method == 'POST':
+        empresa = request.form['empresa']
         username = request.form['username']
         password = request.form['password']
-        user = check_user(username, password)
+        user = check_user(username, password, empresa)
         if user:
             session['user_id'] = user['profissional_id']
             session['username'] = user['login']
+            session['nome_fantasia'] = user['nome_fantasia']
+            session['cnpj'] = user['cnpj']
+            session['empresa'] = user['identificador']
             return redirect(url_for('comissao'))
         else:
-            error = 'Usuário ou senha inválidos.'
-    return render_template_string(LOGIN_HTML, error=error, nome_fantasia=prestador['nome_fantasia'], cnpj=prestador['cnpj'])
+            error = 'Usuário, senha ou empresa inválidos.'
+    return render_template_string(LOGIN_HTML, error=error)
 
 
 # Nova rota para exibir comissão
@@ -160,6 +220,12 @@ def comissao():
                 box-shadow: 0 4px 24px rgba(21,101,192,0.13);
                 text-align: center;
             }}
+            .cabecalho-empresa {{
+                font-size: 1.1rem;
+                color: #1976d2;
+                font-weight: 700;
+                margin-bottom: 10px;
+            }}
             .titulo {{
                 font-size: 2.1rem;
                 font-weight: 700;
@@ -255,6 +321,7 @@ def comissao():
     </head>
     <body>
         <div class="container">
+            <div class="cabecalho-empresa">{session.get('nome_fantasia', '')} | CNPJ: {session.get('cnpj', '')}</div>
             <div class="titulo">Olá, {session['username']}!</div>
             <div class="valor">Comissão do dia:<br><strong>R$ {comissao_dia:.2f}</strong></div>
             <div class="valor">Comissão do mês:<br><strong>R$ {comissao_mes:.2f}</strong></div>
