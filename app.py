@@ -21,10 +21,10 @@ def get_prestador_info():
     return {'nome_fantasia': '', 'cnpj': ''}
 
 DB_CONFIG = {
-    'host': 'dpg-d7cpt98sfn5c73ftf12g-a.oregon-postgres.render.com',
-    'dbname': 'cupom_db',
-    'user': 'cupom_db_user',
-    'password': 'hU5ZiL36o4mew8TCyWQZpYgPG7M3ZW74',
+    'host': 'aws-1-sa-east-1.pooler.supabase.com',
+    'dbname': 'postgres',
+    'user': 'postgres.zlxlrpejtgrqxmpixwdq',
+    'password': 'Odisseia2001FIM',
     'port': 5432
 }
 
