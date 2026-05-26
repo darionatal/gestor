@@ -5,7 +5,7 @@ app = Flask(__name__)
 app.secret_key = 'sua_chave_secreta_aqui'
 
 
-# Novo template de login com campo para empresa
+# Novo template de login com campo para número da empresa (id_prestador)
 LOGIN_HTML = '''
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -20,7 +20,7 @@ LOGIN_HTML = '''
         .titulo { font-size: 2.1rem; font-weight: 700; color: #1565c0; margin-bottom: 18px; }
         .form-group { margin-bottom: 18px; text-align: left; }
         label { display: block; font-weight: 700; color: #1976d2; margin-bottom: 6px; }
-        input[type="text"], input[type="password"] { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #b0bec5; font-size: 1rem; }
+        input[type="text"], input[type="password"], input[type="number"] { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #b0bec5; font-size: 1rem; }
         .btn { width: 100%; padding: 12px; background: #1976d2; color: #fff; border: none; border-radius: 6px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: background 0.2s; }
         .btn:hover { background: #0d47a1; }
         .error { color: #d32f2f; margin-bottom: 12px; font-weight: 700; }
@@ -32,8 +32,8 @@ LOGIN_HTML = '''
         {% if error %}<div class="error">{{ error }}</div>{% endif %}
         <form method="post">
             <div class="form-group">
-                <label for="empresa">Empresa</label>
-                <input type="text" id="empresa" name="empresa" required placeholder="Nome da empresa">
+                <label for="id_prestador">Número da empresa</label>
+                <input type="number" id="id_prestador" name="id_prestador" required placeholder="Número da empresa">
             </div>
             <div class="form-group">
                 <label for="username">Usuário</label>
@@ -73,16 +73,25 @@ DB_CONFIG = {
 }
 
 
-# Novo: checa usuário usando login, senha e identificador (empresa)
+# Busca id_prestador pelo nome da empresa (identificador) e valida login
 def check_user(username, password, empresa):
     try:
         conn = psycopg2.connect(**DB_CONFIG)
         cur = conn.cursor()
+        # Busca o id_prestador pelo identificador (nome da empresa)
+        cur.execute("SELECT id_prestador FROM vw_usuarios WHERE identificador = %s LIMIT 1", (empresa,))
+        row = cur.fetchone()
+        if not row:
+            cur.close()
+            conn.close()
+            return None
+        id_prestador = row[0]
+        # Agora valida login, senha e id_prestador
         cur.execute("""
-            SELECT usuario_id, login, fantasia, cnpj, identificador
+            SELECT usuario_id, login, fantasia, cnpj, id_prestador
             FROM vw_usuarios
-            WHERE login=%s AND senha=%s AND identificador=%s
-        """, (username, password, empresa))
+            WHERE login=%s AND senha=%s AND id_prestador=%s
+        """, (username, password, id_prestador))
         result = cur.fetchone()
         cur.close()
         conn.close()
@@ -92,7 +101,7 @@ def check_user(username, password, empresa):
                 'login': result[1],
                 'nome_fantasia': result[2],
                 'cnpj': result[3],
-                'identificador': result[4]
+                'id_prestador': result[4]
             }
         return None
     except Exception as e:
@@ -108,7 +117,10 @@ def index():
 def login():
     error = None
     if request.method == 'POST':
-        empresa = request.form['empresa']
+        empresa = request.form['id_prestador'] if 'id_prestador' in request.form else request.form.get('empresa')
+        # Suporte ao campo antigo ou novo
+        if not empresa:
+            empresa = request.form.get('empresa')
         username = request.form['username']
         password = request.form['password']
         user = check_user(username, password, empresa)
@@ -117,7 +129,7 @@ def login():
             session['username'] = user['login']
             session['nome_fantasia'] = user['nome_fantasia']
             session['cnpj'] = user['cnpj']
-            session['empresa'] = user['identificador']
+            session['id_prestador'] = user['id_prestador']
             return redirect(url_for('comissao'))
         else:
             error = 'Usuário, senha ou empresa inválidos.'
