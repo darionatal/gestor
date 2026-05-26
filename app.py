@@ -5,7 +5,7 @@ app = Flask(__name__)
 app.secret_key = 'sua_chave_secreta_aqui'
 
 
-# Novo template de login com campo para número da empresa (id_prestador)
+# Novo template de login com campo para nome da empresa (identificador)
 LOGIN_HTML = '''
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -20,7 +20,7 @@ LOGIN_HTML = '''
         .titulo { font-size: 2.1rem; font-weight: 700; color: #1565c0; margin-bottom: 18px; }
         .form-group { margin-bottom: 18px; text-align: left; }
         label { display: block; font-weight: 700; color: #1976d2; margin-bottom: 6px; }
-        input[type="text"], input[type="password"], input[type="number"] { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #b0bec5; font-size: 1rem; }
+        input[type="text"], input[type="password"] { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #b0bec5; font-size: 1rem; }
         .btn { width: 100%; padding: 12px; background: #1976d2; color: #fff; border: none; border-radius: 6px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: background 0.2s; }
         .btn:hover { background: #0d47a1; }
         .error { color: #d32f2f; margin-bottom: 12px; font-weight: 700; }
@@ -32,8 +32,8 @@ LOGIN_HTML = '''
         {% if error %}<div class="error">{{ error }}</div>{% endif %}
         <form method="post">
             <div class="form-group">
-                <label for="id_prestador">Número da empresa</label>
-                <input type="number" id="id_prestador" name="id_prestador" required placeholder="Número da empresa">
+                <label for="empresa">Nome da empresa</label>
+                <input type="text" id="empresa" name="empresa" required placeholder="Nome da empresa">
             </div>
             <div class="form-group">
                 <label for="username">Usuário</label>
@@ -117,10 +117,7 @@ def index():
 def login():
     error = None
     if request.method == 'POST':
-        empresa = request.form['id_prestador'] if 'id_prestador' in request.form else request.form.get('empresa')
-        # Suporte ao campo antigo ou novo
-        if not empresa:
-            empresa = request.form.get('empresa')
+        empresa = request.form['empresa']
         username = request.form['username']
         password = request.form['password']
         user = check_user(username, password, empresa)
