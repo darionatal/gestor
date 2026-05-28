@@ -1,5 +1,11 @@
+import logging
 from flask import Flask, render_template_string, request, redirect, url_for, session
 import psycopg2
+from psycopg2 import pool
+from flask_ngrok import run_with_ngrok
+
+# Configure logging
+logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
 
 app = Flask(__name__)
 app.secret_key = 'sua_chave_secreta_aqui'
@@ -50,20 +56,6 @@ LOGIN_HTML = '''
 </html>
 '''
 
-def get_prestador_info():
-    try:
-        conn = psycopg2.connect(**DB_CONFIG)
-        cur = conn.cursor()
-        cur.execute("SELECT fantasia, cnpj FROM prestador LIMIT 1")
-        row = cur.fetchone()
-        cur.close()
-        conn.close()
-        if row:
-            return {'nome_fantasia': row[0], 'cnpj': row[1]}
-    except Exception as e:
-        print("Erro ao buscar prestador:", e)
-    return {'nome_fantasia': '', 'cnpj': ''}
-
 DB_CONFIG = {
     'host': 'aws-1-sa-east-1.pooler.supabase.com',
     'dbname': 'postgres',
@@ -72,29 +64,45 @@ DB_CONFIG = {
     'port': 5432
 }
 
+# Initialize a connection pool
+try:
+    connection_pool = psycopg2.pool.SimpleConnectionPool(1, 20, **DB_CONFIG)
+except Exception as e:
+    logging.error(f"Erro ao inicializar o pool de conexões do banco de dados: {e}")
+    # Depending on the application, you might want to exit or handle this more gracefully
+
+def get_prestador_info():
+    conn = None
+    try:
+        conn = connection_pool.getconn()
+        cur = conn.cursor()
+        cur.execute("SELECT fantasia, cnpj FROM prestador LIMIT 1")
+        row = cur.fetchone()
+        cur.close()
+        if row:
+            return {'nome_fantasia': row[0], 'cnpj': row[1]}
+    except Exception as e:
+        logging.error(f"Erro ao buscar informações do prestador: {e}")
+    finally:
+        if conn:
+            connection_pool.putconn(conn)
+    return {'nome_fantasia': '', 'cnpj': ''}
+
 
 # Busca id_prestador pelo nome da empresa (identificador) e valida login
 def check_user(username, password, empresa):
+    conn = None
     try:
-        conn = psycopg2.connect(**DB_CONFIG)
+        conn = connection_pool.getconn()
         cur = conn.cursor()
-        # Busca o id_prestador pelo identificador (nome da empresa)
-        cur.execute("SELECT id_prestador FROM vw_usuarios WHERE identificador = %s LIMIT 1", (empresa,))
-        row = cur.fetchone()
-        if not row:
-            cur.close()
-            conn.close()
-            return None
-        id_prestador = row[0]
-        # Agora valida login, senha e id_prestador
+        # Valida login, senha e identificador (nome da empresa) em uma única consulta
         cur.execute("""
-            SELECT usuario_id, login, fantasia, cnpj, id_prestador
+            SELECT profissional_id, login, fantasia, cnpj, id_prestador
             FROM vw_usuarios
-            WHERE login=%s AND senha=%s AND id_prestador=%s
-        """, (username, password, id_prestador))
+            WHERE login=%s AND senha=%s AND identificador=%s
+        """, (username, password, empresa))
         result = cur.fetchone()
         cur.close()
-        conn.close()
         if result:
             return {
                 'profissional_id': result[0],
@@ -105,13 +113,15 @@ def check_user(username, password, empresa):
             }
         return None
     except Exception as e:
-        print("Erro ao acessar o banco:", e)
+        logging.error(f"Erro ao acessar o banco em check_user: {e}")
         return False
+    finally:
+        if conn:
+            connection_pool.putconn(conn)
 
 @app.route('/', methods=['GET'])
 def index():
     return redirect(url_for('login'))
-
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -142,6 +152,7 @@ def comissao():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     user_id = session['user_id']
+    id_prestador = session.get('id_prestador')
     # Data selecionada via query param, padrão: hoje
     data_str = request.args.get('data')
     if data_str:
@@ -151,48 +162,60 @@ def comissao():
             data_selecionada = date.today()
     else:
         data_selecionada = date.today()
-    print(f"[DEBUG] user_id: {user_id}, data_selecionada: {data_selecionada}")
+    print(f"[DEBUG] user_id: {user_id}, data_selecionada: {data_selecionada}, id_prestador: {id_prestador}  ")
 
     # Consulta agenda do dia
     agenda = []
+    conn_agenda = None
     try:
-        conn = psycopg2.connect(**DB_CONFIG)
-        cur = conn.cursor()
+        conn_agenda = connection_pool.getconn()
+        cur = conn_agenda.cursor()
         cur.execute("""
             SELECT profissional_id, data, hora, produto_descricao, valor_comissao
             FROM vw_agenda_dia
-            WHERE profissional_id = %s AND data = %s
+            WHERE profissional_id = %s AND data = %s AND id_prestador = %s
             ORDER BY hora
-        """, (user_id, data_selecionada))
+        """, (user_id, data_selecionada, id_prestador))
+        print(f"[DEBUG] Agenda query executed for profissional_id={user_id}, data={data_selecionada}, id_prestador={id_prestador}")
         agenda = cur.fetchall()
         cur.close()
-        conn.close()
     except Exception as e:
+        logging.error(f"Erro ao buscar agenda do dia para profissional_id={user_id}, data={data_selecionada}, id_prestador={id_prestador}: {e}")
         return f"<h2>Erro ao acessar o banco: {e}</h2>"
+    finally:
+        if conn_agenda:
+            connection_pool.putconn(conn_agenda)
 
+    comissao_dia = 0
+    comissao_mes = 0
+    conn_comissao = None
     try:
-        conn = psycopg2.connect(**DB_CONFIG)
-        cur = conn.cursor()
+        conn_comissao = connection_pool.getconn()
+        cur = conn_comissao.cursor()
         # Comissão do dia selecionado
         cur.execute("""
             SELECT COALESCE(SUM(valor_comissao), 0)
             FROM vw_agenda_produtos
-            WHERE profissional_id = %s AND data = %s
-        """, (user_id, data_selecionada))
+            WHERE profissional_id = %s AND data = %s AND id_prestador = %s
+        """, (user_id, data_selecionada, id_prestador))
+        print(f"[DEBUG] Comissão do dia query executed for profissional_id={user_id}, data={data_selecionada}, id_prestador={id_prestador}")
         comissao_dia = cur.fetchone()[0]
         # Comissão do mês da data selecionada
         cur.execute("""
             SELECT COALESCE(SUM(valor_comissao), 0)
             FROM vw_agenda_produtos
-            WHERE profissional_id = %s AND date_trunc('month', data) = date_trunc('month', %s)
-        """, (user_id, data_selecionada))
+            WHERE profissional_id = %s AND date_trunc('month', data) = date_trunc('month', %s) AND id_prestador = %s
+        """, (user_id, data_selecionada, id_prestador   ))
+        print(f"[DEBUG] Comissão do mês query executed for profissional_id={user_id}, data={data_selecionada}, id_prestador={id_prestador}")
         comissao_mes = cur.fetchone()[0]
-        # Agenda removida
-        # print removido
         cur.close()
-        conn.close()
     except Exception as e:
+        logging.error(f"Erro ao buscar comissões para profissional_id={user_id}, data={data_selecionada}, id_prestador={id_prestador}: {e}")
         return f"<h2>Erro ao acessar o banco: {e}</h2>"
+    finally:
+        if conn_comissao:
+            connection_pool.putconn(conn_comissao)
+
     data_hoje = data_selecionada
     data_ant = (data_hoje - timedelta(days=1)).strftime('%Y-%m-%d')
     data_prox = (data_hoje + timedelta(days=1)).strftime('%Y-%m-%d')
@@ -362,4 +385,11 @@ def logout():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Only use ngrok if you are in a Colab environment
+    # run_with_ngrok(app) 
+    
+    try:
+        app.run(host='0.0.0.0', port=5000)
+    finally:
+        if connection_pool:
+            connection_pool.closeall()
