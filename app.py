@@ -31,6 +31,8 @@ LOGIN_HTML = '''
         .btn:hover { background: #0d47a1; }
         .error { color: #d32f2f; margin-bottom: 12px; font-weight: 700; }
     </style>
+    <link rel="apple-touch-icon" sizes="192x192" href="{{ url_for('static', filename='calendario.png') }}">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ url_for('static', filename='calendario.png') }}">
 </head>
 <body>
     <div class="container">
@@ -195,7 +197,7 @@ def comissao():
         # Comissão do dia selecionado
         cur.execute("""
             SELECT COALESCE(SUM(valor_comissao), 0)
-            FROM vw_agenda_produtos
+            FROM vw_comissao
             WHERE profissional_id = %s AND data = %s AND id_prestador = %s
         """, (user_id, data_selecionada, id_prestador))
         print(f"[DEBUG] Comissão do dia query executed for profissional_id={user_id}, data={data_selecionada}, id_prestador={id_prestador}")
@@ -203,7 +205,7 @@ def comissao():
         # Comissão do mês da data selecionada
         cur.execute("""
             SELECT COALESCE(SUM(valor_comissao), 0)
-            FROM vw_agenda_produtos
+            FROM vw_comissao
             WHERE profissional_id = %s AND date_trunc('month', data) = date_trunc('month', %s) AND id_prestador = %s
         """, (user_id, data_selecionada, id_prestador   ))
         print(f"[DEBUG] Comissão do mês query executed for profissional_id={user_id}, data={data_selecionada}, id_prestador={id_prestador}")
