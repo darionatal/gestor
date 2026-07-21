@@ -40,6 +40,7 @@ def put_conn(conn):
 
 
 def check_user(username, password, empresa):
+    print("chegou aqui, usuario: ", username, "senha: ", password, "empresa: ", empresa )
     """Verifica as credenciais do usuário na view do banco."""
     conn = None
     try:
