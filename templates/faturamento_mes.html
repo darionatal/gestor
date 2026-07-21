@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Faturamento do Mês · Gestor{% endblock %}
+
+{% block extra_css %}
+.month-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.month-nav input[type="month"] {
+    flex: 1;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 0.9rem;
+    outline: none;
+    min-height: 48px;
+    -webkit-appearance: none;
+}
+
+.month-nav input[type="month"]:focus {
+    border-color: var(--accent);
+}
+
+.month-nav button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.month-nav button:active {
+    background: var(--accent-hover);
+}
+
+.month-nav button .material-icons-round { font-size: 22px; }
+
+.section-card {
+    margin-bottom: 16px;
+}
+{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('dashboard') }}" class="back-link animate-in">
+    <span class="material-icons-round">arrow_back</span>
+    Menu
+</a>
+
+<div class="page-header animate-in">
+    <h1>Faturamento do Mês</h1>
+    <p>Total de pagamentos finalizados no mês</p>
+</div>
+
+<!-- Month Navigation -->
+<form method="get" class="month-nav animate-in">
+    <input type="month" name="mes" id="mes-input" value="{{ mes_selecionado }}">
+    <button type="submit" aria-label="Consultar">
+        <span class="material-icons-round">search</span>
+    </button>
+</form>
+
+<!-- Summary Cards -->
+<div class="summary-row">
+    <div class="summary-card animate-in" style="flex: 1; min-width: 100%;">
+        <div class="summary-icon green">
+            <span class="material-icons-round">account_balance_wallet</span>
+        </div>
+        <div class="summary-label">Total do Mês</div>
+        <div class="summary-value green">R$ {{ "%.2f"|format(total_faturamento) }}</div>
+    </div>
+</div>
+
+<!-- Faturamento por Forma de Pagamento -->
+<div class="card section-card animate-in">
+    <div class="section-title">
+        <span class="material-icons-round">pie_chart</span>
+        Por Forma de Pagamento
+    </div>
+    {% if faturamento %}
+    <div class="card-list">
+        {% for item in faturamento %}
+        <div class="card-list-item">
+            <div class="card-list-item-info">
+                <div class="card-list-item-title">{{ item.forma_pagamento }}</div>
+                <div class="card-list-item-sub">Finalizado</div>
+            </div>
+            <div class="card-list-item-value green">R$ {{ "%.2f"|format(item.valor) }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="card-total">
+        <span>Total</span>
+        <span class="card-total-value green">R$ {{ "%.2f"|format(total_faturamento) }}</span>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <span class="material-icons-round">inbox</span>
+        <p>Nenhum pagamento finalizado no mês</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard · Gestor{% endblock %}
+
+{% block extra_css %}
+.welcome-banner {
+    background: linear-gradient(135deg, #1e3a5f 0%, #1e293b 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+}
+
+.welcome-banner::before {
+    content: '';
+    position: absolute;
+    top: -60%;
+    right: -30%;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.welcome-banner h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+    position: relative;
+}
+
+.welcome-banner p {
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    position: relative;
+}
+
+.menu-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.menu-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 16px;
+    text-decoration: none;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow);
+    -webkit-tap-highlight-color: transparent;
+    min-height: 72px;
+}
+
+.menu-card:active {
+    transform: scale(0.98);
+    border-color: var(--accent);
+    background: var(--bg-card-hover);
+}
+
+.menu-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.menu-icon .material-icons-round { font-size: 26px; }
+
+.menu-icon.blue { background: rgba(59, 130, 246, 0.15); color: var(--accent); }
+.menu-icon.green { background: var(--success-bg); color: var(--success); }
+.menu-icon.amber { background: var(--warning-bg); color: var(--warning); }
+
+.menu-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.menu-body h3 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 3px;
+}
+
+.menu-body p {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.menu-chevron {
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.menu-chevron .material-icons-round { font-size: 22px; }
+
+@media (min-width: 768px) {
+    .welcome-banner { padding: 28px; }
+    .welcome-banner h2 { font-size: 1.3rem; }
+
+    .menu-card {
+        padding: 22px 20px;
+        min-height: 80px;
+    }
+
+    .menu-card:hover {
+        border-color: var(--accent);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+}
+{% endblock %}
+
+{% block content %}
+<div class="welcome-banner animate-in">
+    <h2>Olá, {{ session.get('username', '') }}!</h2>
+    <p>{{ session.get('company', '') }}</p>
+</div>
+
+<div class="page-header animate-in">
+    <h1>Menu</h1>
+</div>
+
+<div class="menu-list">
+    <a href="{{ url_for('faturamento_dia') }}" class="menu-card animate-in" id="menu-faturamento-dia">
+        <div class="menu-icon blue">
+            <span class="material-icons-round">today</span>
+        </div>
+        <div class="menu-body">
+            <h3>Faturamento do Dia</h3>
+            <p>Receitas recebidas e previstas para hoje</p>
+        </div>
+        <div class="menu-chevron">
+            <span class="material-icons-round">chevron_right</span>
+        </div>
+    </a>
+
+    <a href="{{ url_for('faturamento_mes') }}" class="menu-card animate-in" id="menu-faturamento-mes">
+        <div class="menu-icon green">
+            <span class="material-icons-round">calendar_month</span>
+        </div>
+        <div class="menu-body">
+            <h3>Faturamento do Mês</h3>
+            <p>Visão consolidada do mês atual</p>
+        </div>
+        <div class="menu-chevron">
+            <span class="material-icons-round">chevron_right</span>
+        </div>
+    </a>
+
+    <a href="{{ url_for('comissao') }}" class="menu-card animate-in" id="menu-comissao">
+        <div class="menu-icon amber">
+            <span class="material-icons-round">payments</span>
+        </div>
+        <div class="menu-body">
+            <h3>Comissão</h3>
+            <p>Relatório de comissões sobre atendimentos</p>
+        </div>
+        <div class="menu-chevron">
+            <span class="material-icons-round">chevron_right</span>
+        </div>
+    </a>
+</div>
+{% endblock %}

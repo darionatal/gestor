@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+
+{% block title %}Comissão · Gestor{% endblock %}
+
+{% block extra_css %}
+.date-range {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.date-field {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.date-field label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.date-field input[type="date"] {
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 12px 12px;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 0.88rem;
+    outline: none;
+    min-height: 48px;
+    -webkit-appearance: none;
+    transition: border-color 0.2s;
+}
+
+.date-field input[type="date"]:focus {
+    border-color: var(--accent);
+}
+
+.btn-search {
+    display: flex;
+    align-items: flex-end;
+}
+
+.btn-search button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.btn-search button:active {
+    background: var(--accent-hover);
+}
+
+.btn-search button .material-icons-round { font-size: 22px; }
+
+/* Profissional rank list */
+.rank-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.rank-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(51, 65, 85, 0.6);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.rank-position {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--accent);
+}
+
+.rank-item:nth-child(1) .rank-position {
+    background: rgba(250, 204, 21, 0.15);
+    color: #facc15;
+}
+
+.rank-item:nth-child(2) .rank-position {
+    background: rgba(148, 163, 184, 0.15);
+    color: #94a3b8;
+}
+
+.rank-item:nth-child(3) .rank-position {
+    background: rgba(217, 119, 6, 0.15);
+    color: #d97706;
+}
+
+.rank-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.rank-name {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rank-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--success);
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
+
+/* Bar visual */
+.rank-bar-wrap {
+    height: 4px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 2px;
+    margin-top: 8px;
+    overflow: hidden;
+}
+
+.rank-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.6s ease-out;
+}
+
+.rank-item:nth-child(1) .rank-bar { background: #facc15; }
+.rank-item:nth-child(2) .rank-bar { background: #94a3b8; }
+.rank-item:nth-child(3) .rank-bar { background: #d97706; }
+
+.period-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    font-weight: 500;
+    margin-bottom: 20px;
+}
+
+.period-label .material-icons-round { font-size: 16px; }
+{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('dashboard') }}" class="back-link animate-in">
+    <span class="material-icons-round">arrow_back</span>
+    Menu
+</a>
+
+<div class="page-header animate-in">
+    <h1>Comissão</h1>
+    <p>Comissões por profissional no período</p>
+</div>
+
+<!-- Date Range Filter -->
+<form method="get" class="date-range animate-in">
+    <div style="display: flex; gap: 8px; width: 100%;">
+        <div class="date-field">
+            <label for="data_inicio">Data Inicial</label>
+            <input type="date" id="data_inicio" name="data_inicio" value="{{ data_inicio }}">
+        </div>
+        <div class="date-field">
+            <label for="data_fim">Data Final</label>
+            <input type="date" id="data_fim" name="data_fim" value="{{ data_fim }}">
+        </div>
+        <div class="btn-search">
+            <button type="submit" aria-label="Consultar">
+                <span class="material-icons-round">search</span>
+            </button>
+        </div>
+    </div>
+    
+    <div style="width: 100%; display: flex; align-items: center; margin-top: 8px;">
+        <label for="pendente" style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: var(--text-primary);">
+            <input type="checkbox" id="pendente" name="pendente" {% if apenas_pendentes %}checked{% endif %} style="width: 20px; height: 20px; accent-color: var(--warning);">
+            Mostrar apenas pendentes (não pagos)
+        </label>
+    </div>
+</form>
+
+<!-- Period label -->
+<div class="period-label animate-in">
+    <span class="material-icons-round">date_range</span>
+    {{ data_inicio }} a {{ data_fim }}
+    {% if apenas_pendentes %}
+    <span class="badge badge-warning" style="margin-left: 8px;">Pendentes</span>
+    {% endif %}
+</div>
+
+<!-- Summary -->
+<div class="summary-row">
+    <div class="summary-card animate-in">
+        <div class="summary-icon green">
+            <span class="material-icons-round">payments</span>
+        </div>
+        <div class="summary-label">Total Comissões</div>
+        <div class="summary-value green">R$ {{ "%.2f"|format(total_comissao) }}</div>
+    </div>
+    <div class="summary-card animate-in">
+        <div class="summary-icon blue">
+            <span class="material-icons-round">group</span>
+        </div>
+        <div class="summary-label">Profissionais</div>
+        <div class="summary-value">{{ comissoes|length }}</div>
+    </div>
+</div>
+
+<!-- Commission List -->
+<div class="card animate-in">
+    <div class="section-title">
+        <span class="material-icons-round">emoji_events</span>
+        Ranking de Comissões
+    </div>
+
+    {% if comissoes %}
+    <div class="rank-list">
+        {% for item in comissoes %}
+        <div class="rank-item">
+            <div class="rank-position">{{ loop.index }}</div>
+            <div class="rank-info">
+                <div class="rank-name">{{ item.nome }}</div>
+                {% if total_comissao > 0 %}
+                <div class="rank-bar-wrap">
+                    <div class="rank-bar" style="width: {{ (item.comissao / total_comissao * 100)|round(1) }}%"></div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="rank-value">R$ {{ "%.2f"|format(item.comissao) }}</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="card-total">
+        <span>Total</span>
+        <span class="card-total-value green">R$ {{ "%.2f"|format(total_comissao) }}</span>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <span class="material-icons-round">inbox</span>
+        <p>Nenhuma comissão encontrada no período</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

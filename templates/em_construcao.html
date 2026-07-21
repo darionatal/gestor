@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titulo }} · Gestor{% endblock %}
+
+{% block extra_css %}
+.construction-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.construction-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 18px;
+    background: rgba(59, 130, 246, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+}
+
+.construction-icon .material-icons-round {
+    font-size: 36px;
+    color: var(--accent);
+}
+
+.construction-container h2 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.construction-container p {
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    max-width: 280px;
+    margin-bottom: 24px;
+    line-height: 1.5;
+}
+
+.btn-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 24px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    min-height: 48px;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.btn-back:active {
+    background: var(--accent-hover);
+}
+{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('dashboard') }}" class="back-link animate-in">
+    <span class="material-icons-round">arrow_back</span>
+    Menu
+</a>
+
+<div class="construction-container animate-in">
+    <div class="construction-icon">
+        <span class="material-icons-round">construction</span>
+    </div>
+    <h2>{{ titulo }}</h2>
+    <p>Esta funcionalidade está em desenvolvimento e estará disponível em breve.</p>
+    <a href="{{ url_for('dashboard') }}" class="btn-back">
+        <span class="material-icons-round">arrow_back</span>
+        Voltar ao Menu
+    </a>
+</div>
+{% endblock %}
