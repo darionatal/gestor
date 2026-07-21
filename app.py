@@ -272,51 +272,53 @@ def comissao():
     if not session.get('logged_in'):
         return redirect(url_for('login'))
         
-    profissional_id = session.get('profissional_id')
     id_prestador = session.get('id_prestador')
     
-    data_str = request.args.get('data')
-    if data_str:
-        try:
-            data_selecionada = datetime.strptime(data_str, '%Y-%m-%d').date()
-        except Exception:
-            data_selecionada = date.today()
-    else:
-        data_selecionada = date.today()
+    hoje = date.today()
+    data_inicio = request.args.get('data_inicio', hoje.replace(day=1).strftime('%Y-%m-%d'))
+    data_fim = request.args.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    apenas_pendentes = request.args.get('pendente') == 'on'
 
     conn = None
-    comissao_dia = 0
-    comissao_mes = 0
+    comissoes = []
+    total_comissao = 0.0
     
     try:
         conn = get_conn()
         cur = conn.cursor()
         
-        # Comissão do dia selecionado
-        cur.execute("""
-            SELECT COALESCE(SUM(valor_comissao), 0)
-            FROM vw_agenda_produtos
-            WHERE profissional_id = %s AND data = %s AND id_prestador = %s
-        """, (profissional_id, data_selecionada, id_prestador))
-        row = cur.fetchone()
-        comissao_dia = row[0] if row else 0
+        query = """
+            SELECT u.login, SUM(COALESCE(p.valor_comissao, 0)) AS comissao
+            FROM vw_usuarios u
+            INNER JOIN vw_agenda_produtos p ON u.profissional_id = p.profissional_id
+            WHERE p.id_prestador = %s AND p.data >= %s AND p.data <= %s
+        """
+        params = [id_prestador, data_inicio, data_fim]
         
-        # Comissão do mês da data selecionada
-        cur.execute("""
-            SELECT COALESCE(SUM(valor_comissao), 0)
-            FROM vw_agenda_produtos
-            WHERE profissional_id = %s AND date_trunc('month', data) = date_trunc('month', %s) AND id_prestador = %s
-        """, (profissional_id, data_selecionada, id_prestador))
-        row = cur.fetchone()
-        comissao_mes = row[0] if row else 0
+        # Se precisar filtrar pendentes, adicionar a condição aqui, ex: 
+        # se p.status_pagamento = 'pendente' ...
+        
+        query += " GROUP BY u.login ORDER BY comissao DESC"
+        
+        cur.execute(query, params)
+        for row in cur.fetchall():
+            if row[1] > 0:
+                comissoes.append({'nome': row[0], 'comissao': float(row[1])})
         
         cur.close()
     except Exception as e:
         logging.error(f"Erro ao buscar comissão: {e}")
     finally:
         put_conn(conn)
+        
+    total_comissao = sum(item['comissao'] for item in comissoes)
 
-    return render_template('comissao.html', comissao_dia=comissao_dia, comissao_mes=comissao_mes, data_selecionada=data_selecionada)
+    return render_template('comissao.html', 
+                           comissoes=comissoes, 
+                           total_comissao=total_comissao,
+                           data_inicio=data_inicio, 
+                           data_fim=data_fim, 
+                           apenas_pendentes=apenas_pendentes)
 
 
 # ──────────────────────────── INICIALIZADOR PRODUCTION ────────────────────────────
