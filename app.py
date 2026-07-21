@@ -13,7 +13,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 # Configurações do Banco de Dados (Supabase)
 DB_CONFIG = {
-    'host': '://supabase.com',
+    'host': 'aws-1-sa-east-1.pooler.supabase.com',
     'dbname': 'postgres',
     'user': 'postgres.zlxlrpejtgrqxmpixwdq',
     'password': 'Odisseia2001FIM',
@@ -21,6 +21,7 @@ DB_CONFIG = {
 }
 
 # Inicialização do Pool de conexões
+connection_pool = None
 try:
     connection_pool = psycopg2.pool.SimpleConnectionPool(1, 20, **DB_CONFIG)
     logging.info("Pool de conexões do banco de dados inicializado com sucesso.")
@@ -30,7 +31,9 @@ except Exception as e:
 
 def get_conn():
     """Obtém uma conexão do pool."""
-    return connection_pool.getconn()
+    if connection_pool:
+        return connection_pool.getconn()
+    raise Exception("O pool de conexões não está disponível")
 
 
 def put_conn(conn):
@@ -40,7 +43,6 @@ def put_conn(conn):
 
 
 def check_user(username, password, empresa):
-    print("chegou aqui, usuario: ", username, "senha: ", password, "empresa: ", empresa )
     """Verifica as credenciais do usuário na view do banco."""
     conn = None
     try:
@@ -91,6 +93,7 @@ def login():
             session['username'] = user_info['login']
             session['company'] = user_info['nome_fantasia']
             session['id_prestador'] = user_info['id_prestador']
+            session['profissional_id'] = user_info['profissional_id']
             message = f"Bem-vindo, {user_info['login']} da {user_info['nome_fantasia']}!"
             logging.info(message)
             return redirect(url_for('dashboard'))
@@ -260,6 +263,60 @@ def faturamento_mes():
         total_faturamento=total_faturamento,
         mes_selecionado=mes_selecionado
     )
+
+
+# ──────────────────────────── COMISSÃO ────────────────────────────
+
+@app.route('/comissao', methods=['GET'])
+def comissao():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+        
+    profissional_id = session.get('profissional_id')
+    id_prestador = session.get('id_prestador')
+    
+    data_str = request.args.get('data')
+    if data_str:
+        try:
+            data_selecionada = datetime.strptime(data_str, '%Y-%m-%d').date()
+        except Exception:
+            data_selecionada = date.today()
+    else:
+        data_selecionada = date.today()
+
+    conn = None
+    comissao_dia = 0
+    comissao_mes = 0
+    
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        
+        # Comissão do dia selecionado
+        cur.execute("""
+            SELECT COALESCE(SUM(valor_comissao), 0)
+            FROM vw_agenda_produtos
+            WHERE profissional_id = %s AND data = %s AND id_prestador = %s
+        """, (profissional_id, data_selecionada, id_prestador))
+        row = cur.fetchone()
+        comissao_dia = row[0] if row else 0
+        
+        # Comissão do mês da data selecionada
+        cur.execute("""
+            SELECT COALESCE(SUM(valor_comissao), 0)
+            FROM vw_agenda_produtos
+            WHERE profissional_id = %s AND date_trunc('month', data) = date_trunc('month', %s) AND id_prestador = %s
+        """, (profissional_id, data_selecionada, id_prestador))
+        row = cur.fetchone()
+        comissao_mes = row[0] if row else 0
+        
+        cur.close()
+    except Exception as e:
+        logging.error(f"Erro ao buscar comissão: {e}")
+    finally:
+        put_conn(conn)
+
+    return render_template('comissao.html', comissao_dia=comissao_dia, comissao_mes=comissao_mes, data_selecionada=data_selecionada)
 
 
 # ──────────────────────────── INICIALIZADOR PRODUCTION ────────────────────────────
