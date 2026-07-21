@@ -6,21 +6,21 @@ import os
 from datetime import date, datetime
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)  # Usar uma chave secreta forte para sessões
+app.secret_key = os.urandom(24)  # Chave secreta para gerenciar as sessões
 
 # Configuração de logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Configurações do Banco de Dados
+# Configurações do Banco de Dados (Supabase)
 DB_CONFIG = {
-    'host': 'aws-1-sa-east-1.pooler.supabase.com',
+    'host': '://supabase.com',
     'dbname': 'postgres',
     'user': 'postgres.zlxlrpejtgrqxmpixwdq',
     'password': 'Odisseia2001FIM',
     'port': 5432
 }
 
-# Initialize a connection pool
+# Inicialização do Pool de conexões
 try:
     connection_pool = psycopg2.pool.SimpleConnectionPool(1, 20, **DB_CONFIG)
     logging.info("Pool de conexões do banco de dados inicializado com sucesso.")
@@ -39,8 +39,8 @@ def put_conn(conn):
         connection_pool.putconn(conn)
 
 
-# Função check_user
 def check_user(username, password, empresa):
+    """Verifica as credenciais do usuário na view do banco."""
     conn = None
     try:
         conn = get_conn()
@@ -202,11 +202,9 @@ def faturamento_mes():
 
     id_prestador = session.get('id_prestador')
     
-    # Default to current month (YYYY-MM)
     hoje = date.today()
     mes_selecionado = request.args.get('mes', hoje.strftime('%Y-%m'))
     
-    # Calculate start and end dates of the month
     try:
         ano, mes = map(int, mes_selecionado.split('-'))
         data_inicio = date(ano, mes, 1)
@@ -262,74 +260,10 @@ def faturamento_mes():
         mes_selecionado=mes_selecionado
     )
 
-# ──────────────────────────── COMISSÃO ────────────────────────────
 
-@app.route('/comissao')
-def comissao():
-    if not session.get('logged_in'):
-        return redirect(url_for('login'))
+# ──────────────────────────── INICIALIZADOR PRODUCTION ────────────────────────────
 
-    id_prestador = session.get('id_prestador')
-    hoje = date.today()
-
-    # Padrão: dia 1 do mês atual até hoje
-    data_inicio = request.args.get('data_inicio', hoje.replace(day=1).isoformat())
-    data_fim = request.args.get('data_fim', hoje.isoformat())
-    apenas_pendentes = request.args.get('pendente') == 'on'
-
-    conn = None
-    comissoes = []
-
-    try:
-        conn = get_conn()
-        cur = conn.cursor()
-
-        query = """
-            SELECT p.nome, SUM(COALESCE(a.valor_comissao, 0)) AS comissao
-            FROM agendamentos a
-            INNER JOIN profissionais p ON p.id = a.profissional_id
-            WHERE a.id_prestador = %s
-              AND a.status = 'Finalizado'
-              AND a.data BETWEEN %s AND %s
-        """
-        
-        params = [id_prestador, data_inicio, data_fim]
-        
-        if apenas_pendentes:
-            query += " AND a.pg = false"
-            
-        query += """
-            GROUP BY p.nome
-            ORDER BY comissao DESC
-        """
-
-        cur.execute(query, tuple(params))
-
-        for row in cur.fetchall():
-            comissoes.append({
-                'nome': row[0],
-                'comissao': float(row[1])
-            })
-
-        cur.close()
-
-    except Exception as e:
-        logging.error(f"Erro ao buscar comissões: {e}")
-    finally:
-        put_conn(conn)
-
-    total_comissao = sum(item['comissao'] for item in comissoes)
-
-    return render_template(
-        'comissao.html',
-        comissoes=comissoes,
-        total_comissao=total_comissao,
-        data_inicio=data_inicio,
-        data_fim=data_fim,
-        apenas_pendentes=apenas_pendentes
-    )
-
-
-
-if __name__ == '__main__':
-    app.run(debug=True)  # debug=True é para desenvolvimento, desative em produção
+if __name__ == "__main__":
+    # Define a porta usando as configurações do Render ou usa a 5000 localmente
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
