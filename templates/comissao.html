@@ -3,6 +3,7 @@
 {% block title %}Comissão · Gestor{% endblock %}
 
 {% block extra_css %}
+<style>
 .date-range {
     display: flex;
     gap: 8px;
@@ -253,7 +254,7 @@
                 <div class="rank-name">{{ item.nome }}</div>
                 {% if total_comissao > 0 %}
                 <div class="rank-bar-wrap">
-                    <div class="rank-bar" style="width: {{ (item.comissao / total_comissao * 100)|round(1) }}%"></div>
+                    <div class="rank-bar" data-width="{{ (item.comissao / total_comissao * 100)|round(1) }}"></div>
                 </div>
                 {% endif %}
             </div>
@@ -273,4 +274,17 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.rank-bar[data-width]').forEach(function (bar) {
+        const value = parseFloat(bar.getAttribute('data-width'));
+        if (!Number.isNaN(value)) {
+            bar.style.width = value + '%';
+        }
+    });
+});
+</script>
 {% endblock %}
