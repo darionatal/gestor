@@ -84,17 +84,17 @@
     </div>
     <div class="summary-card animate-in">
         <div class="summary-icon amber">
-            <span class="material-icons-round">schedule</span>
+            <span class="material-icons-round">account_balance</span>
         </div>
-        <div class="summary-label">Previsto</div>
-        <div class="summary-value amber">R$ {{ "%.2f"|format(total_previsto) }}</div>
+        <div class="summary-label">Saldo Caixa</div>
+        <div class="summary-value amber">R$ {{ "%.2f"|format(total_caixa) }}</div>
     </div>
     <div class="summary-card animate-in">
         <div class="summary-icon blue">
             <span class="material-icons-round">account_balance_wallet</span>
         </div>
         <div class="summary-label">Total</div>
-        <div class="summary-value">R$ {{ "%.2f"|format(total_recebido + total_previsto) }}</div>
+        <div class="summary-value">R$ {{ "%.2f"|format(total_recebido + total_caixa) }}</div>
     </div>
 </div>
 

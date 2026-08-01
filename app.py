@@ -136,6 +136,7 @@ def faturamento_dia():
     conn = None
     recebidos = []
     previstos = []
+    total_caixa = 0.0
 
     try:
         conn = get_conn()
@@ -177,6 +178,18 @@ def faturamento_dia():
                 'valor': float(row[5])
             })
 
+        # Busca saldo atual do caixa para a data selecionada
+        cur.execute("""
+            SELECT saldo
+            FROM gaveta
+            WHERE id_prestador = %s
+              AND dataregistro::date = %s
+            ORDER BY dataregistro DESC
+            LIMIT 1
+        """, (id_prestador, data_selecionada))
+        row = cur.fetchone()
+        total_caixa = float(row[0]) if row and row[0] is not None else 0.0
+
         cur.close()
 
     except Exception as e:
@@ -193,6 +206,7 @@ def faturamento_dia():
         previstos=previstos,
         total_recebido=total_recebido,
         total_previsto=total_previsto,
+        total_caixa=total_caixa,
         data_selecionada=data_selecionada
     )
 
@@ -288,17 +302,26 @@ def comissao():
         cur = conn.cursor()
         
         query = """
-            SELECT u.login, SUM(COALESCE(p.valor_comissao, 0)) AS comissao
-            FROM vw_usuarios u
-            INNER JOIN vw_agenda_produtos p ON u.profissional_id = p.profissional_id
-            WHERE p.id_prestador = %s AND p.data >= %s AND p.data <= %s
+                SELECT
+                prof.nome AS profissional_nome,
+                COALESCE(SUM(a.valor_comissao)) AS comissao   
+            FROM agendamentos a
+            JOIN profissionais prof ON a.profissional_id = prof.id
+            WHERE a.id_prestador = %s
+              AND a.status = 'Finalizado'
+              AND a.data BETWEEN %s AND %s
+            GROUP BY prof.id, prof.nome
+            ORDER BY prof.nome
+
+
+
         """
         params = [id_prestador, data_inicio, data_fim]
         
         # Se precisar filtrar pendentes, adicionar a condição aqui, ex: 
         # se p.status_pagamento = 'pendente' ...
         
-        query += " GROUP BY u.login ORDER BY comissao DESC"
+        #   query += " GROUP BY u.login ORDER BY comissao DESC"
         
         cur.execute(query, params)
         for row in cur.fetchall():
