@@ -68,6 +68,18 @@
             font-size: 0.85rem;
         }
 
+        .version-badge {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(59, 130, 246, 0.14);
+            color: #93c5fd;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+        }
+
         .login-card {
             background: #1e293b;
             border: 1px solid #334155;
@@ -169,6 +181,7 @@
             </div>
             <h1>Gestor</h1>
             <p>Faça login para continuar</p>
+            <span class="version-badge">Versão {{ version }}</span>
         </div>
 
         <div class="login-card">

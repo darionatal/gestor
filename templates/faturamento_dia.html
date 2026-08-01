@@ -112,7 +112,7 @@
         <div class="card-list-item">
             <div class="card-list-item-info">
                 <div class="card-list-item-title">{{ item.forma_pagamento }}</div>
-                <div class="card-list-item-sub">#{{ item.id }} · <span class="badge badge-success">Finalizado</span></div>
+                <div class="card-list-item-sub">{{ item.cliente_nome }} · #{{ item.id }} · <span class="badge badge-success">Finalizado</span></div>
             </div>
             <div class="card-list-item-value green">R$ {{ "%.2f"|format(item.valor) }}</div>
         </div>
@@ -142,7 +142,7 @@
         <div class="card-list-item">
             <div class="card-list-item-info">
                 <div class="card-list-item-title">{{ item.forma_pagamento }}</div>
-                <div class="card-list-item-sub">#{{ item.id }} · <span class="badge badge-warning">Agendado</span></div>
+                <div class="card-list-item-sub">{{ item.cliente_nome }} · #{{ item.id }} · <span class="badge badge-warning">Agendado</span></div>
             </div>
             <div class="card-list-item-value amber">R$ {{ "%.2f"|format(item.valor) }}</div>
         </div>

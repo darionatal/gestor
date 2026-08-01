@@ -4,12 +4,25 @@ import psycopg2.pool
 import logging
 import os
 from datetime import date, datetime
+from version import __version__
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)  # Chave secreta para gerenciar as sessões
 
 # Configuração de logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+
+def formatar_nome_cliente(nome):
+    """Retorna os dois primeiros nomes de um cliente, se houver."""
+    if not nome:
+        return ''
+
+    partes = [parte for parte in str(nome).split() if parte]
+    if not partes:
+        return ''
+
+    return ' '.join(partes[:2])
 
 # Configurações do Banco de Dados (Supabase)
 DB_CONFIG = {
@@ -101,7 +114,7 @@ def login():
             error = 'Nome da empresa, usuário ou senha inválidos.'
             logging.warning(f"Tentativa de login falhou para Empresa: {empresa}, Usuário: {username}")
 
-    return render_template('login.html', error=error)
+    return render_template('login.html', error=error, version=__version__)
 
 
 @app.route('/logout')
@@ -145,10 +158,12 @@ def faturamento_dia():
         # Busca atendimentos finalizados (recebido)
         cur.execute("""
             SELECT a.id, a.id_prestador, a.data, a.status,
-                   f.nome_forma_pagamento, COALESCE(p.valor, 0) AS valor
+                   f.nome_forma_pagamento, COALESCE(p.valor, 0) AS valor,
+                   COALESCE(c.nome, '') AS cliente_nome
             FROM agenda a
             INNER JOIN pagamentos p ON p.agenda_id = a.id
             INNER JOIN formas_pagamento f ON f.id = p.forma_pgto
+            LEFT JOIN clientes c ON c.id = a.cliente_id
             WHERE a.id_prestador = %s AND a.data = %s AND a.status = 'f'
             ORDER BY a.id
         """, (id_prestador, data_selecionada))
@@ -157,16 +172,19 @@ def faturamento_dia():
             recebidos.append({
                 'id': row[0],
                 'forma_pagamento': row[4],
-                'valor': float(row[5])
+                'valor': float(row[5]),
+                'cliente_nome': formatar_nome_cliente(row[6])
             })
 
         # Busca atendimentos agendados (previsto)
         cur.execute("""
             SELECT a.id, a.id_prestador, a.data, a.status,
-                   f.nome_forma_pagamento, COALESCE(p.valor, 0) AS valor
+                   f.nome_forma_pagamento, COALESCE(p.valor, 0) AS valor,
+                   COALESCE(c.nome, '') AS cliente_nome
             FROM agenda a
             INNER JOIN pagamentos p ON p.agenda_id = a.id
             INNER JOIN formas_pagamento f ON f.id = p.forma_pgto
+            LEFT JOIN clientes c ON c.id = a.cliente_id
             WHERE a.id_prestador = %s AND a.data = %s AND a.status = 'a'
             ORDER BY a.id
         """, (id_prestador, data_selecionada))
@@ -175,7 +193,8 @@ def faturamento_dia():
             previstos.append({
                 'id': row[0],
                 'forma_pagamento': row[4],
-                'valor': float(row[5])
+                'valor': float(row[5]),
+                'cliente_nome': formatar_nome_cliente(row[6])
             })
 
         # Busca saldo atual do caixa para a data selecionada
