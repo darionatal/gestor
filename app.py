@@ -330,7 +330,7 @@ def comissao():
               AND a.status = 'Finalizado'
               AND a.data BETWEEN %s AND %s
             GROUP BY prof.id, prof.nome
-            ORDER BY prof.nome
+            ORDER BY 2 DESC
 
 
 
