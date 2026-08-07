@@ -1,17 +1,14 @@
-{% extends "base.html" %}
-
-{% block title %}Faturamento do Dia · Gestor{% endblock %}
-
-{% block extra_css %}
+{% extends "base.html" %} {% block title %}Faturamento do Dia · Gestor{%
+endblock %} {% block extra_css %}
 <style>
-.date-nav {
+  .date-nav {
     display: flex;
     align-items: center;
     gap: 8px;
     margin-bottom: 20px;
-}
+  }
 
-.date-nav input[type="date"] {
+  .date-nav input[type="date"] {
     flex: 1;
     background: var(--bg-card);
     border: 1px solid var(--border);
@@ -23,13 +20,13 @@
     outline: none;
     min-height: 48px;
     -webkit-appearance: none;
-}
+  }
 
-.date-nav input[type="date"]:focus {
+  .date-nav input[type="date"]:focus {
     border-color: var(--accent);
-}
+  }
 
-.date-nav button {
+  .date-nav button {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -42,121 +39,144 @@
     cursor: pointer;
     flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
-}
+  }
 
-.date-nav button:active {
+  .date-nav button:active {
     background: var(--accent-hover);
-}
+  }
 
-.date-nav button .material-icons-round { font-size: 22px; }
+  .date-nav button .material-icons-round {
+    font-size: 22px;
+  }
 
-.section-card {
+  .section-card {
     margin-bottom: 16px;
-}
+  }
 </style>
-{% endblock %}
-
-{% block content %}
+{% endblock %} {% block content %}
 <a href="{{ url_for('dashboard') }}" class="back-link animate-in">
-    <span class="material-icons-round">arrow_back</span>
-    Menu
+  <span class="material-icons-round">arrow_back</span>
+  Menu
 </a>
 
 <div class="page-header animate-in">
-    <h1>Faturamento do Dia</h1>
-    <p>Receitas do dia selecionado</p>
+  <h1>Faturamento do Dia</h1>
+  <p>Receitas do dia selecionado</p>
 </div>
 
 <!-- Date Navigation -->
 <form method="get" class="date-nav animate-in">
-    <input type="date" name="data" id="data-input" value="{{ data_selecionada }}">
-    <button type="submit" aria-label="Consultar">
-        <span class="material-icons-round">search</span>
-    </button>
+  <input
+    type="date"
+    name="data"
+    id="data-input"
+    value="{{ data_selecionada }}"
+  />
+  <button type="submit" aria-label="Consultar">
+    <span class="material-icons-round">search</span>
+  </button>
 </form>
 
 <!-- Summary Cards (horizontal scroll) -->
 <div class="summary-row">
-    <div class="summary-card animate-in">
-        <div class="summary-icon green">
-            <span class="material-icons-round">check_circle</span>
-        </div>
-        <div class="summary-label">Recebido</div>
-        <div class="summary-value green">R$ {{ "%.2f"|format(total_recebido) }}</div>
+  <div class="summary-card animate-in">
+    <div class="summary-icon green">
+      <span class="material-icons-round">check_circle</span>
     </div>
-    <div class="summary-card animate-in">
-        <div class="summary-icon amber">
-            <span class="material-icons-round">account_balance</span>
-        </div>
-        <div class="summary-label">Saldo Caixa</div>
-        <div class="summary-value amber">R$ {{ "%.2f"|format(total_caixa) }}</div>
+    <div class="summary-label">Recebido</div>
+    <div class="summary-value green">
+      R$ {{ "%.2f"|format(total_recebido) }}
     </div>
-    <div class="summary-card animate-in">
-        <div class="summary-icon blue">
-            <span class="material-icons-round">account_balance_wallet</span>
-        </div>
-        <div class="summary-label">Total</div>
-        <div class="summary-value">R$ {{ "%.2f"|format(total_recebido + total_caixa) }}</div>
+  </div>
+  <div class="summary-card animate-in">
+    <div class="summary-icon amber">
+      <span class="material-icons-round">account_balance</span>
     </div>
+    <div class="summary-label">Saldo Caixa</div>
+    <div class="summary-value amber">R$ {{ "%.2f"|format(total_caixa) }}</div>
+  </div>
+  <div class="summary-card animate-in">
+    <div class="summary-icon blue">
+      <span class="material-icons-round">account_balance_wallet</span>
+    </div>
+    <div class="summary-label">Total</div>
+    <div class="summary-value">
+      R$ {{ "%.2f"|format(total_recebido + total_caixa) }}
+    </div>
+  </div>
 </div>
 
 <!-- Recebido (Finalizados) -->
 <div class="card section-card animate-in">
-    <div class="section-title">
-        <span class="material-icons-round">check_circle</span>
-        Recebido
-    </div>
-    {% if recebidos %}
-    <div class="card-list">
-        {% for item in recebidos %}
-        <div class="card-list-item">
-            <div class="card-list-item-info">
-                <div class="card-list-item-title">{{ item.forma_pagamento }}</div>
-                <div class="card-list-item-sub">{{ item.cliente_nome }} · #{{ item.id }} · <span class="badge badge-success">Finalizado</span></div>
-            </div>
-            <div class="card-list-item-value green">R$ {{ "%.2f"|format(item.valor) }}</div>
+  <div class="section-title">
+    <span class="material-icons-round">check_circle</span>
+    Recebido
+  </div>
+  {% if recebidos %}
+  <div class="card-list">
+    {% for item in recebidos %}
+    <div class="card-list-item">
+      <div class="card-list-item-info">
+        <div class="card-list-item-title">{{ item.forma_pagamento }}</div>
+        <div class="card-list-item-sub">
+          {{ item.cliente_nome }} · #{{ item.id }} ·
+          <span class="badge badge-success">Finalizado</span>
         </div>
-        {% endfor %}
+      </div>
+      <div class="card-list-item-value green">
+        R$ {{ "%.2f"|format(item.valor) }}
+      </div>
     </div>
-    <div class="card-total">
-        <span>Total</span>
-        <span class="card-total-value green">R$ {{ "%.2f"|format(total_recebido) }}</span>
-    </div>
-    {% else %}
-    <div class="empty-state">
-        <span class="material-icons-round">inbox</span>
-        <p>Nenhum atendimento finalizado</p>
-    </div>
-    {% endif %}
+    {% endfor %}
+  </div>
+  <div class="card-total">
+    <span>Total</span>
+    <span class="card-total-value green"
+      >R$ {{ "%.2f"|format(total_recebido) }}</span
+    >
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <span class="material-icons-round">inbox</span>
+    <p>Nenhum atendimento finalizado</p>
+  </div>
+  {% endif %}
 </div>
 
 <!-- Previsto (Agendados) -->
 <div class="card section-card animate-in">
-    <div class="section-title">
-        <span class="material-icons-round">schedule</span>
-        Previsto
-    </div>
-    {% if previstos %}
-    <div class="card-list">
-        {% for item in previstos %}
-        <div class="card-list-item">
-            <div class="card-list-item-info">
-                <div class="card-list-item-title">{{ item.forma_pagamento }}</div>
-                <div class="card-list-item-sub">{{ item.cliente_nome }} · #{{ item.id }} · <span class="badge badge-warning">Agendado</span></div>
-            </div>
-            <div class="card-list-item-value amber">R$ {{ "%.2f"|format(item.valor) }}</div>
+  <div class="section-title">
+    <span class="material-icons-round">schedule</span>
+    Previsto
+  </div>
+  {% if previstos %}
+  <div class="card-list">
+    {% for item in previstos %}
+    <div class="card-list-item">
+      <div class="card-list-item-info">
+        <div class="card-list-item-title">{{ item.forma_pagamento }}</div>
+        <div class="card-list-item-sub">
+          {{ item.cliente_nome }} · #{{ item.id }} ·
+          <span class="badge badge-warning">Agendado</span>
         </div>
-        {% endfor %}
+      </div>
+      <div class="card-list-item-value amber">
+        R$ {{ "%.2f"|format(item.valor) }}
+      </div>
     </div>
-    <div class="card-total">
-        <span>Total</span>
-        <span class="card-total-value amber">R$ {{ "%.2f"|format(total_previsto) }}</span>
-    </div>
-    {% else %}
-    <div class="empty-state">
-        <span class="material-icons-round">inbox</span>
-        <p>Nenhum atendimento agendado</p>
-    </div>
-    {% endif %}
+    {% endfor %}
+  </div>
+  <div class="card-total">
+    <span>Total</span>
+    <span class="card-total-value amber"
+      >R$ {{ "%.2f"|format(total_previsto) }}</span
+    >
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <span class="material-icons-round">inbox</span>
+    <p>Nenhum atendimento agendado</p>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

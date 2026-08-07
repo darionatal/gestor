@@ -202,13 +202,11 @@ def faturamento_dia():
             SELECT saldo
             FROM gaveta
             WHERE id_prestador = %s
-              AND dataregistro::date = %s
             ORDER BY dataregistro DESC
             LIMIT 1
-        """, (id_prestador, data_selecionada))
+        """, (id_prestador,))
         row = cur.fetchone()
         total_caixa = float(row[0]) if row and row[0] is not None else 0.0
-
         cur.close()
 
     except Exception as e:
