@@ -359,6 +359,65 @@ def comissao():
                            data_inicio=data_inicio, 
                            data_fim=data_fim, 
                            apenas_pendentes=apenas_pendentes)
+# ──────────────────────────── AGENDA DO DIA ────────────────────────────
+
+@app.route('/agenda-dia')
+def agenda_dia():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+
+    id_prestador = session.get('id_prestador')
+    profissional_logado = session.get('profissional_id')
+    
+    data_selecionada = request.args.get('data', date.today().isoformat())
+    profissional_selecionado = request.args.get('profissional_id', profissional_logado)
+    
+    conn = None
+    profissionais = []
+    agenda = []
+    total_valor = 0.0
+    
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        
+        # Lista de profissionais
+        cur.execute("SELECT id, nome FROM profissionais WHERE id_prestador = %s and ativo=true and operacao=true  ORDER BY nome", (id_prestador,))
+        for row in cur.fetchall():
+            profissionais.append({'id': row[0], 'nome': row[1]})
+            
+        # Agendamentos
+        cur.execute("""
+            SELECT a.hora, c.nome AS cliente_nome, p.descricao AS servico_nome, a.valor
+            FROM agendamentos a
+            LEFT JOIN clientes c ON a.cliente_id = c.id
+            LEFT JOIN produtos p ON a.produto_id = p.id
+            WHERE a.profissional_id = %s AND a.data = %s AND a.id_prestador = %s
+            ORDER BY a.hora
+        """, (profissional_selecionado, data_selecionada, id_prestador))
+        
+        for row in cur.fetchall():
+            valor = float(row[3]) if row[3] is not None else 0.0
+            agenda.append({
+                'hora': row[0],
+                'cliente_nome': formatar_nome_cliente(row[1]) if row[1] else 'Cliente não informado',
+                'servico_nome': row[2] or 'Serviço não informado',
+                'valor': valor
+            })
+            total_valor += valor
+            
+        cur.close()
+    except Exception as e:
+        logging.error(f"Erro ao buscar agenda do dia: {e}")
+    finally:
+        put_conn(conn)
+        
+    return render_template('agenda_dia.html',
+                           agenda=agenda,
+                           profissionais=profissionais,
+                           profissional_selecionado=profissional_selecionado,
+                           data_selecionada=data_selecionada,
+                           total_valor=total_valor)
 
 
 # ──────────────────────────── INICIALIZADOR PRODUCTION ────────────────────────────

@@ -139,6 +139,18 @@
 </div>
 
 <div class="menu-list">
+    <a href="{{ url_for('agenda_dia') }}" class="menu-card animate-in" id="menu-agenda-dia">
+        <div class="menu-icon" style="background: rgba(139, 92, 246, 0.15); color: #8b5cf6;">
+            <span class="material-icons-round">event_note</span>
+        </div>
+        <div class="menu-body">
+            <h3>Agenda do Dia</h3>
+            <p>Visualize os agendamentos do profissional selecionado</p>
+        </div>
+        <div class="menu-chevron">
+            <span class="material-icons-round">chevron_right</span>
+        </div>
+    </a>
     <a href="{{ url_for('faturamento_dia') }}" class="menu-card animate-in" id="menu-faturamento-dia">
         <div class="menu-icon blue">
             <span class="material-icons-round">today</span>
