@@ -26,9 +26,9 @@ def formatar_nome_cliente(nome):
 
 # Configurações do Banco de Dados (Supabase)
 DB_CONFIG = {
-    'host': 'aws-1-sa-east-1.pooler.supabase.com',
+    'host': 'aws-0-sa-east-1.pooler.supabase.com',
     'dbname': 'postgres',
-    'user': 'postgres.zlxlrpejtgrqxmpixwdq',
+    'user': 'postgres.wruxchynwscgiethyjwl',
     'password': 'Odisseia2001FIM',
     'port': 5432
 }
