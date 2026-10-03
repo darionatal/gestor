@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}Agenda do Dia · Gestor{% endblock %}
+
+{% block extra_css %}
+<style>
+.date-range {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.date-field, .prof-field {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.date-field label, .prof-field label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.date-field input[type="date"], .prof-field select {
+    width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 12px 12px;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 0.88rem;
+    outline: none;
+    min-height: 48px;
+    -webkit-appearance: none;
+    transition: border-color 0.2s;
+}
+
+.date-field input[type="date"]:focus, .prof-field select:focus {
+    border-color: var(--accent);
+}
+
+.btn-search {
+    display: flex;
+    align-items: flex-end;
+}
+
+.btn-search button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.btn-search button:active {
+    background: var(--accent-hover);
+}
+
+.btn-search button .material-icons-round { font-size: 22px; }
+
+/* Agenda Table */
+.agenda-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    margin-top: 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+.agenda-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 500px;
+    text-align: left;
+}
+
+.agenda-table th, .agenda-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+}
+
+.agenda-table th {
+    background: rgba(0, 0, 0, 0.2);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid rgba(51, 65, 85, 0.8);
+}
+
+.agenda-table td {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.agenda-table tr:last-child td {
+    border-bottom: none;
+}
+
+.agenda-table tr:hover td {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.cell-hora {
+    font-weight: 700;
+    color: var(--accent);
+    white-space: nowrap;
+    width: 80px;
+}
+
+.cell-cliente {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.cell-servico {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.cell-valor {
+    font-weight: 700;
+    color: var(--success);
+    white-space: nowrap;
+    text-align: right;
+}
+.agenda-table th.right-align {
+    text-align: right;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('dashboard') }}" class="back-link animate-in">
+    <span class="material-icons-round">arrow_back</span>
+    Menu
+</a>
+
+<div class="page-header animate-in">
+    <h1>Agenda do Dia</h1>
+    <p>Visualize os agendamentos do profissional</p>
+</div>
+
+<!-- Filtros -->
+<form method="get" class="date-range animate-in">
+    <div style="display: flex; gap: 8px; width: 100%; margin-bottom: 8px;">
+        <div class="prof-field">
+            <label for="profissional_id">Profissional</label>
+            <select id="profissional_id" name="profissional_id">
+                {% for prof in profissionais %}
+                <option value="{{ prof.id }}" {% if prof.id|string == profissional_selecionado|string %}selected{% endif %}>{{ prof.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    <div style="display: flex; gap: 8px; width: 100%;">
+        <div class="date-field">
+            <label for="data">Data</label>
+            <input type="date" id="data" name="data" value="{{ data_selecionada }}">
+        </div>
+        <div class="btn-search">
+            <button type="submit" aria-label="Consultar">
+                <span class="material-icons-round">search</span>
+            </button>
+        </div>
+    </div>
+</form>
+
+<div class="card animate-in">
+    <div class="section-title">
+        <span class="material-icons-round">event_note</span>
+        Agendamentos
+    </div>
+
+    {% if agenda %}
+    <div class="agenda-table-wrapper">
+        <table class="agenda-table">
+            <thead>
+                <tr>
+                    <th>Hora</th>
+                    <th>Cliente</th>
+                    <th>Serviço</th>
+                    <th class="right-align">Valor</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in agenda %}
+                <tr>
+                    <td class="cell-hora">{{ item.hora }}</td>
+                    <td class="cell-cliente">{{ item.cliente_nome or 'Cliente não informado' }}</td>
+                    <td class="cell-servico">{{ item.servico_nome or 'Serviço não informado' }}</td>
+                    <td class="cell-valor">R$ {{ "%.2f"|format(item.valor) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="card-total" style="margin-top: 16px;">
+        <span>Total Agendado</span>
+        <span class="card-total-value green">R$ {{ "%.2f"|format(total_valor) }}</span>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <span class="material-icons-round">event_busy</span>
+        <p>Nenhum agendamento para esta data</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

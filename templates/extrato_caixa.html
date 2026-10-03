@@ -1,0 +1,316 @@
+﻿{% extends "base.html" %} {% block title %}Extrato do Caixa · Gestor{% endblock %} {% block extra_css %}
+<style>
+  .filter-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+  }
+  .filter-card .filter-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .filter-card .filter-label .material-icons-round {
+    font-size: 15px;
+    color: var(--accent);
+  }
+  .filter-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+  }
+  .filter-field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .filter-field label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.03em;
+  }
+  .filter-field input[type="date"] {
+    width: 100%;
+    background: var(--bg-primary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    font-family: inherit;
+    font-size: 0.85rem;
+    outline: none;
+    min-height: 44px;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .filter-field input[type="date"]:focus {
+    border-color: var(--accent);
+  }
+  .btn-filter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 0 18px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: inherit;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.2s;
+  }
+  .btn-filter:active { background: var(--accent-hover); }
+  .btn-filter .material-icons-round { font-size: 18px; }
+
+  .saldo-summary {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .saldo-summary::-webkit-scrollbar { display: none; }
+  .saldo-pill {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    flex-shrink: 0;
+    min-width: 150px;
+    box-shadow: var(--shadow);
+  }
+  .saldo-pill .pill-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+  }
+  .saldo-pill .pill-value {
+    font-size: 1.15rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .pill-value.positive { color: var(--success); }
+  .pill-value.negative { color: var(--danger); }
+  .pill-value.neutral  { color: var(--warning); }
+
+  .section-card { margin-bottom: 16px; }
+  .card-list { display: flex; flex-direction: column; gap: 10px; }
+  .mov-item {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(51,65,85,0.6);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    transition: border-color 0.2s;
+  }
+  .mov-item:hover { border-color: var(--border); }
+  .mov-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .mov-date {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .mov-date .material-icons-round { font-size: 14px; color: var(--text-muted); }
+  .mov-valor {
+    font-size: 1rem;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+  }
+  .mov-valor.entrada { color: var(--success); }
+  .mov-valor.saida   { color: var(--danger); }
+  .mov-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .mov-obs {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .mov-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .mov-saldo-label { font-size: 0.72rem; color: var(--text-muted); font-weight: 500; }
+  .mov-saldo-val {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--warning);
+    font-variant-numeric: tabular-nums;
+  }
+  .mov-user {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: rgba(59,130,246,0.1);
+    color: var(--accent);
+    border-radius: 20px;
+    padding: 2px 8px;
+    font-size: 0.68rem;
+    font-weight: 600;
+  }
+  .mov-user .material-icons-round { font-size: 11px; }
+  .card-total {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px;
+    margin-top: 10px;
+    border-top: 2px solid var(--border);
+    font-weight: 700;
+    font-size: 0.95rem;
+  }
+</style>
+{% endblock %} {% block content %}
+
+<a href="{{ url_for('faturamento_dia') }}" class="back-link animate-in">
+  <span class="material-icons-round">arrow_back</span>
+  Faturamento do Dia
+</a>
+
+<div class="page-header animate-in">
+  <h1>Extrato do Caixa</h1>
+  <p>Movimentações por período</p>
+</div>
+
+<!-- Filtro de período -->
+<div class="filter-card animate-in">
+  <div class="filter-label">
+    <span class="material-icons-round">date_range</span>
+    Período
+  </div>
+  <form method="get" class="filter-row" id="form-extrato">
+    <div class="filter-field">
+      <label for="data_inicio">De</label>
+      <input type="date" name="data_inicio" id="data_inicio" value="{{ data_inicio }}" required />
+    </div>
+    <div class="filter-field">
+      <label for="data_fim">Até</label>
+      <input type="date" name="data_fim" id="data_fim" value="{{ data_fim }}" required />
+    </div>
+    <button type="submit" class="btn-filter" aria-label="Filtrar">
+      <span class="material-icons-round">search</span>
+      Buscar
+    </button>
+  </form>
+</div>
+
+<!-- Cards de resumo -->
+{% if movimentos %}
+{% set saldo_atual     = movimentos[0].saldo %}
+{% set total_entradas  = namespace(v=0.0) %}
+{% set total_saidas    = namespace(v=0.0) %}
+{% for m in movimentos %}
+  {% if m.valor >= 0 %}{% set total_entradas.v = total_entradas.v + m.valor %}{% endif %}
+  {% if m.valor < 0  %}{% set total_saidas.v   = total_saidas.v   + m.valor %}{% endif %}
+{% endfor %}
+
+<div class="saldo-summary animate-in">
+  <div class="saldo-pill">
+    <div class="pill-label">Saldo Atual</div>
+    <div class="pill-value neutral">R$ {{ "%.2f"|format(saldo_atual) }}</div>
+  </div>
+  <div class="saldo-pill">
+    <div class="pill-label">Entradas</div>
+    <div class="pill-value positive">+ R$ {{ "%.2f"|format(total_entradas.v) }}</div>
+  </div>
+  <div class="saldo-pill">
+    <div class="pill-label">Saídas</div>
+    <div class="pill-value negative">R$ {{ "%.2f"|format(total_saidas.v) }}</div>
+  </div>
+  <div class="saldo-pill">
+    <div class="pill-label">Movimentos</div>
+    <div class="pill-value neutral">{{ movimentos|length }}</div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Lista de movimentos -->
+<div class="card section-card animate-in">
+  <div class="section-title">
+    <span class="material-icons-round">receipt_long</span>
+    Movimentos
+  </div>
+
+  {% if movimentos %}
+  <div class="card-list">
+    {% for mov in movimentos %}
+    <div class="mov-item">
+      <div class="mov-header">
+        <div class="mov-date">
+          <span class="material-icons-round">schedule</span>
+          {{ mov.data }}
+        </div>
+        <div class="mov-valor {{ 'entrada' if mov.valor >= 0 else 'saida' }}">
+          {{ '+' if mov.valor >= 0 else '' }}R$ {{ "%.2f"|format(mov.valor) }}
+        </div>
+      </div>
+      <div class="mov-footer">
+        <div class="mov-obs">
+          {% if mov.obs %}{{ mov.obs }}{% else %}<span style="opacity:0.4">Sem observação</span>{% endif %}
+        </div>
+        <div class="mov-meta">
+          <span class="mov-saldo-label">Saldo:</span>
+          <span class="mov-saldo-val">R$ {{ "%.2f"|format(mov.saldo) }}</span>
+          <span class="mov-user">
+            <span class="material-icons-round">person</span>
+            {{ mov.login }}
+          </span>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="card-total">
+    <span>Registros no período</span>
+    <span style="color: var(--text-secondary)">{{ movimentos|length }}</span>
+  </div>
+
+  {% else %}
+  <div class="empty-state">
+    <span class="material-icons-round">inbox</span>
+    <p>Nenhum movimento encontrado no período</p>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}

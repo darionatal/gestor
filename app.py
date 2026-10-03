@@ -1,0 +1,481 @@
+from flask import Flask, render_template, request, redirect, url_for, session
+import psycopg2
+import psycopg2.pool
+import logging
+import os
+from datetime import date, datetime, timedelta
+from version import __version__
+
+app = Flask(__name__)
+app.secret_key = os.urandom(24)  # Chave secreta para gerenciar as sessões
+
+# Configuração de logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+
+def formatar_nome_cliente(nome):
+    """Retorna os dois primeiros nomes de um cliente, se houver."""
+    if not nome:
+        return ''
+
+    partes = [parte for parte in str(nome).split() if parte]
+    if not partes:
+        return ''
+
+    return ' '.join(partes[:2])
+
+# Configurações do Banco de Dados (Supabase)
+DB_CONFIG = {
+    'host': 'aws-0-sa-east-1.pooler.supabase.com',
+    'dbname': 'postgres',
+    'user': 'postgres.wruxchynwscgiethyjwl',
+    'password': 'Odisseia2001FIM',
+    'port': 5432
+}
+
+# Inicialização do Pool de conexões
+connection_pool = None
+try:
+    connection_pool = psycopg2.pool.SimpleConnectionPool(1, 20, **DB_CONFIG)
+    logging.info("Pool de conexões do banco de dados inicializado com sucesso.")
+except Exception as e:
+    logging.error(f"Erro ao inicializar o pool de conexões do banco de dados: {e}")
+
+
+def get_conn():
+    """Obtém uma conexão do pool."""
+    if connection_pool:
+        return connection_pool.getconn()
+    raise Exception("O pool de conexões não está disponível")
+
+
+def put_conn(conn):
+    """Devolve uma conexão ao pool."""
+    if conn:
+        connection_pool.putconn(conn)
+
+
+def check_user(username, password, empresa):
+    """Verifica as credenciais do usuário na view do banco."""
+    conn = None
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT profissional_id, login, fantasia, cnpj, id_prestador
+            FROM vw_usuarios
+            WHERE login=%s AND senha=%s AND identificador=%s
+        """, (username, password, empresa))
+        result = cur.fetchone()
+        cur.close()
+        if result:
+            return {
+                'profissional_id': result[0],
+                'login': result[1],
+                'nome_fantasia': result[2],
+                'cnpj': result[3],
+                'id_prestador': result[4]
+            }
+        return None
+    except Exception as e:
+        logging.error(f"Erro ao acessar o banco em check_user: {e}")
+        return None
+    finally:
+        put_conn(conn)
+
+
+# ──────────────────────────── ROTAS DE AUTENTICAÇÃO ────────────────────────────
+
+@app.route('/')
+def index():
+    return redirect(url_for('login'))
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        empresa = request.form['empresa']
+        username = request.form['username']
+        password = request.form['password']
+
+        user_info = check_user(username, password, empresa)
+
+        if user_info:
+            session['logged_in'] = True
+            session['username'] = user_info['login']
+            session['company'] = user_info['nome_fantasia']
+            session['id_prestador'] = user_info['id_prestador']
+            session['profissional_id'] = user_info['profissional_id']
+            message = f"Bem-vindo, {user_info['login']} da {user_info['nome_fantasia']}!"
+            logging.info(message)
+            return redirect(url_for('dashboard'))
+        else:
+            error = 'Nome da empresa, usuário ou senha inválidos.'
+            logging.warning(f"Tentativa de login falhou para Empresa: {empresa}, Usuário: {username}")
+
+    return render_template('login.html', error=error, version=__version__)
+
+
+@app.route('/logout')
+def logout():
+    session.pop('logged_in', None)
+    session.pop('username', None)
+    session.pop('company', None)
+    session.pop('id_prestador', None)
+    logging.info("Usuário desconectado.")
+    return redirect(url_for('login'))
+
+
+# ──────────────────────────── DASHBOARD / MENU ────────────────────────────
+
+@app.route('/dashboard')
+def dashboard():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    return render_template('dashboard.html')
+
+
+# ──────────────────────────── FATURAMENTO DO DIA ────────────────────────────
+
+@app.route('/faturamento-dia')
+def faturamento_dia():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+
+    id_prestador = session.get('id_prestador')
+    data_selecionada = request.args.get('data', date.today().isoformat())
+
+    conn = None
+    recebidos = []
+    previstos = []
+    total_caixa = 0.0
+
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+
+        # Busca atendimentos finalizados (recebido)
+        cur.execute("""
+            SELECT a.id, a.id_prestador, a.data, a.status,
+                   f.nome_forma_pagamento, COALESCE(p.valor, 0) AS valor,
+                   COALESCE(c.nome, '') AS cliente_nome
+            FROM agenda a
+            INNER JOIN pagamentos p ON p.agenda_id = a.id
+            INNER JOIN formas_pagamento f ON f.id = p.forma_pgto
+            LEFT JOIN clientes c ON c.id = a.cliente_id
+            WHERE a.id_prestador = %s AND a.data = %s AND a.status = 'f'
+            ORDER BY a.id
+        """, (id_prestador, data_selecionada))
+
+        for row in cur.fetchall():
+            recebidos.append({
+                'id': row[0],
+                'forma_pagamento': row[4],
+                'valor': float(row[5]),
+                'cliente_nome': formatar_nome_cliente(row[6])
+            })
+
+        # Busca atendimentos agendados (previsto)
+        cur.execute("""
+            SELECT a.id, a.id_prestador, a.data, a.status,
+                   f.nome_forma_pagamento, COALESCE(p.valor, 0) AS valor,
+                   COALESCE(c.nome, '') AS cliente_nome
+            FROM agenda a
+            INNER JOIN pagamentos p ON p.agenda_id = a.id
+            INNER JOIN formas_pagamento f ON f.id = p.forma_pgto
+            LEFT JOIN clientes c ON c.id = a.cliente_id
+            WHERE a.id_prestador = %s AND a.data = %s AND a.status = 'a'
+            ORDER BY a.id
+        """, (id_prestador, data_selecionada))
+
+        for row in cur.fetchall():
+            previstos.append({
+                'id': row[0],
+                'forma_pagamento': row[4],
+                'valor': float(row[5]),
+                'cliente_nome': formatar_nome_cliente(row[6])
+            })
+
+        # Busca saldo atual do caixa para a data selecionada
+        cur.execute("""
+            SELECT saldo
+            FROM gaveta
+            WHERE id_prestador = %s
+            ORDER BY dataregistro DESC
+            LIMIT 1
+        """, (id_prestador,))
+        row = cur.fetchone()
+        total_caixa = float(row[0]) if row and row[0] is not None else 0.0
+        cur.close()
+
+    except Exception as e:
+        logging.error(f"Erro ao buscar faturamento do dia: {e}")
+    finally:
+        put_conn(conn)
+
+    total_recebido = sum(item['valor'] for item in recebidos)
+    total_previsto = sum(item['valor'] for item in previstos)
+
+    return render_template(
+        'faturamento_dia.html',
+        recebidos=recebidos,
+        previstos=previstos,
+        total_recebido=total_recebido,
+        total_previsto=total_previsto,
+        total_caixa=total_caixa,
+        data_selecionada=data_selecionada
+    )
+
+
+# ──────────────────────────── EXTRATO DO CAIXA ────────────────────────────
+
+@app.route('/extrato-caixa')
+def extrato_caixa():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+
+    id_prestador = session.get('id_prestador')
+    hoje = date.today()
+    ontem = hoje - timedelta(days=1)
+
+    data_fim = request.args.get('data_fim', hoje.isoformat())
+    data_inicio = request.args.get('data_inicio', ontem.isoformat())
+
+    movimentos = []
+    conn = None
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT to_char(g.dataregistro, 'DD/MM/YYYY HH24:MI') AS data,
+                   g.valor,
+                   g.saldo,
+                   COALESCE(g.obs, '') AS obs,
+                   u.login
+            FROM public.gaveta g
+            INNER JOIN usuarios u ON u.id = g.usuario_id
+            WHERE g.id_prestador = %s
+              AND g.dataregistro BETWEEN %s AND (%s::date + INTERVAL '1 day' - INTERVAL '1 second')
+            ORDER BY g.dataregistro DESC
+        """, (id_prestador, data_inicio, data_fim))
+
+        for row in cur.fetchall():
+            movimentos.append({
+                'data': row[0],
+                'valor': float(row[1]) if row[1] is not None else 0.0,
+                'saldo': float(row[2]) if row[2] is not None else 0.0,
+                'obs': row[3],
+                'login': row[4]
+            })
+        cur.close()
+    except Exception as e:
+        logging.error(f"Erro ao buscar extrato do caixa: {e}")
+    finally:
+        put_conn(conn)
+
+    return render_template(
+        'extrato_caixa.html',
+        movimentos=movimentos,
+        data_inicio=data_inicio,
+        data_fim=data_fim
+    )
+
+
+
+@app.route('/faturamento-mes')
+def faturamento_mes():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+
+    id_prestador = session.get('id_prestador')
+    
+    hoje = date.today()
+    mes_selecionado = request.args.get('mes', hoje.strftime('%Y-%m'))
+    
+    try:
+        ano, mes = map(int, mes_selecionado.split('-'))
+        data_inicio = date(ano, mes, 1)
+        if mes == 12:
+            data_fim = date(ano + 1, 1, 1)
+        else:
+            data_fim = date(ano, mes + 1, 1)
+    except ValueError:
+        data_inicio = date(hoje.year, hoje.month, 1)
+        if hoje.month == 12:
+            data_fim = date(hoje.year + 1, 1, 1)
+        else:
+            data_fim = date(hoje.year, hoje.month + 1, 1)
+        mes_selecionado = hoje.strftime('%Y-%m')
+
+    conn = None
+    faturamento = []
+
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+
+        cur.execute("""
+            SELECT f.nome_forma_pagamento, SUM(COALESCE(p.valor, 0)) AS valor
+            FROM agenda a
+            INNER JOIN pagamentos p ON p.agenda_id = a.id
+            INNER JOIN formas_pagamento f ON f.id = p.forma_pgto
+            WHERE a.id_prestador = %s AND a.status = 'f'
+              AND a.data >= %s AND a.data < %s
+            GROUP BY f.nome_forma_pagamento
+            ORDER BY valor DESC
+        """, (id_prestador, data_inicio.isoformat(), data_fim.isoformat()))
+
+        for row in cur.fetchall():
+            faturamento.append({
+                'forma_pagamento': row[0],
+                'valor': float(row[1])
+            })
+
+        cur.close()
+
+    except Exception as e:
+        logging.error(f"Erro ao buscar faturamento do mês: {e}")
+    finally:
+        put_conn(conn)
+
+    total_faturamento = sum(item['valor'] for item in faturamento)
+
+    return render_template(
+        'faturamento_mes.html',
+        faturamento=faturamento,
+        total_faturamento=total_faturamento,
+        mes_selecionado=mes_selecionado
+    )
+
+
+# ──────────────────────────── COMISSÃO ────────────────────────────
+
+@app.route('/comissao', methods=['GET'])
+def comissao():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+        
+    id_prestador = session.get('id_prestador')
+    
+    hoje = date.today()
+    data_inicio = request.args.get('data_inicio', hoje.replace(day=1).strftime('%Y-%m-%d'))
+    data_fim = request.args.get('data_fim', hoje.strftime('%Y-%m-%d'))
+    apenas_pendentes = request.args.get('pendente') == 'on'
+
+    conn = None
+    comissoes = []
+    total_comissao = 0.0
+    
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        
+        query = """
+                SELECT
+                prof.nome AS profissional_nome,
+                COALESCE(SUM(a.valor_comissao)) AS comissao   
+            FROM agendamentos a
+            JOIN profissionais prof ON a.profissional_id = prof.id
+            WHERE a.id_prestador = %s
+              AND a.status = 'Finalizado'
+              AND a.data BETWEEN %s AND %s
+            GROUP BY prof.id, prof.nome
+            ORDER BY 2 DESC
+
+
+
+        """
+        params = [id_prestador, data_inicio, data_fim]
+        
+        # Se precisar filtrar pendentes, adicionar a condição aqui, ex: 
+        # se p.status_pagamento = 'pendente' ...
+        
+        #   query += " GROUP BY u.login ORDER BY comissao DESC"
+        
+        cur.execute(query, params)
+        for row in cur.fetchall():
+            if row[1] > 0:
+                comissoes.append({'nome': row[0], 'comissao': float(row[1])})
+        
+        cur.close()
+    except Exception as e:
+        logging.error(f"Erro ao buscar comissão: {e}")
+    finally:
+        put_conn(conn)
+        
+    total_comissao = sum(item['comissao'] for item in comissoes)
+
+    return render_template('comissao.html', 
+                           comissoes=comissoes, 
+                           total_comissao=total_comissao,
+                           data_inicio=data_inicio, 
+                           data_fim=data_fim, 
+                           apenas_pendentes=apenas_pendentes)
+# ──────────────────────────── AGENDA DO DIA ────────────────────────────
+
+@app.route('/agenda-dia')
+def agenda_dia():
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+
+    id_prestador = session.get('id_prestador')
+    profissional_logado = session.get('profissional_id')
+    
+    data_selecionada = request.args.get('data', date.today().isoformat())
+    profissional_selecionado = request.args.get('profissional_id', profissional_logado)
+    
+    conn = None
+    profissionais = []
+    agenda = []
+    total_valor = 0.0
+    
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        
+        # Lista de profissionais
+        cur.execute("SELECT id, nome FROM profissionais WHERE id_prestador = %s and ativo=true and operacao=true  ORDER BY nome", (id_prestador,))
+        for row in cur.fetchall():
+            profissionais.append({'id': row[0], 'nome': row[1]})
+            
+        # Agendamentos
+        cur.execute("""
+            SELECT a.hora, c.nome AS cliente_nome, p.descricao AS servico_nome, a.valor
+            FROM agendamentos a
+            LEFT JOIN clientes c ON a.cliente_id = c.id
+            LEFT JOIN produtos p ON a.produto_id = p.id
+            WHERE a.profissional_id = %s AND a.data = %s AND a.id_prestador = %s
+            ORDER BY a.hora
+        """, (profissional_selecionado, data_selecionada, id_prestador))
+        
+        for row in cur.fetchall():
+            valor = float(row[3]) if row[3] is not None else 0.0
+            agenda.append({
+                'hora': row[0],
+                'cliente_nome': formatar_nome_cliente(row[1]) if row[1] else 'Cliente não informado',
+                'servico_nome': row[2] or 'Serviço não informado',
+                'valor': valor
+            })
+            total_valor += valor
+            
+        cur.close()
+    except Exception as e:
+        logging.error(f"Erro ao buscar agenda do dia: {e}")
+    finally:
+        put_conn(conn)
+        
+    return render_template('agenda_dia.html',
+                           agenda=agenda,
+                           profissionais=profissionais,
+                           profissional_selecionado=profissional_selecionado,
+                           data_selecionada=data_selecionada,
+                           total_valor=total_valor)
+
+
+# ──────────────────────────── INICIALIZADOR PRODUCTION ────────────────────────────
+
+if __name__ == "__main__":
+    # Define a porta usando as configurações do Render ou usa a 5000 localmente
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
