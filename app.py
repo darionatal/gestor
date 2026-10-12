@@ -202,7 +202,7 @@ def faturamento_dia():
             SELECT saldo
             FROM gaveta
             WHERE id_prestador = %s
-            ORDER BY dataregistro DESC
+            ORDER BY id DESC
             LIMIT 1
         """, (id_prestador,))
         row = cur.fetchone()
@@ -257,7 +257,7 @@ def extrato_caixa():
             INNER JOIN usuarios u ON u.id = g.usuario_id
             WHERE g.id_prestador = %s
               AND g.dataregistro BETWEEN %s AND (%s::date + INTERVAL '1 day' - INTERVAL '1 second')
-            ORDER BY g.dataregistro DESC
+            ORDER BY g.id DESC
         """, (id_prestador, data_inicio, data_fim))
 
         for row in cur.fetchall():
