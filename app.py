@@ -1,3 +1,4 @@
+# APP.PY
 from flask import Flask, render_template, request, redirect, url_for, session
 import psycopg2
 import psycopg2.pool
@@ -280,8 +281,6 @@ def extrato_caixa():
         data_inicio=data_inicio,
         data_fim=data_fim
     )
-
-
 
 @app.route('/faturamento-mes')
 def faturamento_mes():
